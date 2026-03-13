@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Unsent ✦ — Say what you never could</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  @keyframes fadein { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
+  @keyframes slideup { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:#06060F; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
+  .app { background:#0C0C12; border-radius:20px; width:100%; max-width:520px; min-height:600px; color:#fff; position:relative; overflow:hidden; }
+  .stars { position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(circle,rgba(255,255,255,0.15) 1px,transparent 1px),radial-gradient(circle,rgba(255,255,255,0.08) 1px,transparent 1px);background-size:60px 60px,30px 30px;background-position:0 0,15px 15px; }
+  .glow { position:absolute;border-radius:50%;pointer-events:none;width:400px;height:400px;background:radial-gradient(circle,rgba(180,100,120,0.12) 0%,transparent 70%);top:-100px;left:50%;transform:translateX(-50%);animation:pulse 4s ease-in-out infinite; }
+  .nav { display:flex;align-items:center;justify-content:space-between;padding:20px 28px;border-bottom:0.5px solid rgba(255,255,255,0.07);position:relative;z-index:3; }
+  .nav-logo { font-size:15px;font-weight:500;color:#fff;letter-spacing:0.02em; }
+  .nav-logo span { color:#C4788A; }
+  .nav-tabs { display:flex;gap:4px; }
+  .nav-tab { padding:6px 16px;border-radius:100px;font-size:13px;cursor:pointer;color:rgba(255,255,255,0.4);border:none;background:transparent;transition:all 0.2s ease; }
+  .nav-tab.active { background:rgba(255,255,255,0.08);color:#fff; }
+  .nav-tab:hover { color:rgba(255,255,255,0.7); }
+  .content { padding:36px 28px;position:relative;z-index:2; }
+  .hero { text-align:center;margin-bottom:32px;animation:fadein 0.5s ease; }
+  .hero-tag { font-size:11px;letter-spacing:0.2em;color:#C4788A;text-transform:uppercase;margin-bottom:12px; }
+  .hero-title { font-size:28px;font-weight:500;line-height:1.25;margin-bottom:10px; }
+  .hero-title em { font-style:normal;color:#C4788A; }
+  .hero-sub { font-size:14px;color:rgba(255,255,255,0.4);line-height:1.6; }
+  .compose-card { background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);border-radius:18px;padding:28px;margin-bottom:28px;animation:fadein 0.6s ease; }
+  .compose-card h3 { font-size:13px;font-weight:500;color:rgba(255,255,255,0.5);margin-bottom:20px;letter-spacing:0.04em; }
+  .field { margin-bottom:16px; }
+  .field label { font-size:11px;color:rgba(255,255,255,0.4);letter-spacing:0.08em;text-transform:uppercase;display:block;margin-bottom:8px; }
+  .field input, .field textarea { width:100%;background:rgba(255,255,255,0.05);border:0.5px solid rgba(255,255,255,0.1);border-radius:12px;padding:12px 16px;color:#fff;font-size:14px;font-family:inherit;outline:none;transition:border-color 0.2s ease;resize:none; }
+  .field input::placeholder, .field textarea::placeholder { color:rgba(255,255,255,0.2); }
+  .field input:focus, .field textarea:focus { border-color:rgba(196,120,138,0.5); }
+  .emotion-grid { display:flex;flex-wrap:wrap;gap:8px; }
+  .etag { padding:6px 14px;border-radius:100px;font-size:12px;border:0.5px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.5);cursor:pointer;transition:all 0.2s ease;background:transparent; }
+  .etag:hover { border-color:#C4788A;color:#C4788A; }
+  .etag.selected { background:rgba(196,120,138,0.2);border-color:#C4788A;color:#C4788A; }
+  .send-btn { width:100%;padding:15px;border-radius:14px;border:none;background:#C4788A;color:#fff;font-size:15px;font-weight:500;cursor:pointer;transition:all 0.2s ease;margin-top:8px; }
+  .send-btn:hover { background:#B5667A;transform:translateY(-1px); }
+  .send-btn:disabled { opacity:0.6;cursor:not-allowed;transform:none; }
+  .wall-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:20px; }
+  .wall-title { font-size:16px;font-weight:500; }
+  .wall-count { font-size:12px;color:rgba(255,255,255,0.3); }
+  .message-card { background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px;margin-bottom:14px;animation:slideup 0.4s ease;transition:border-color 0.2s ease; }
+  .message-card:hover { border-color:rgba(196,120,138,0.3); }
+  .msg-top { display:flex;align-items:center;justify-content:space-between;margin-bottom:12px; }
+  .msg-emotion { font-size:11px;letter-spacing:0.1em;text-transform:uppercase;padding:4px 12px;border-radius:100px;background:rgba(196,120,138,0.15);color:#C4788A; }
+  .msg-time { font-size:11px;color:rgba(255,255,255,0.2); }
+  .msg-to { font-size:12px;color:rgba(255,255,255,0.3);margin-bottom:10px; }
+  .msg-to span { color:rgba(255,255,255,0.6); }
+  .msg-body { font-size:15px;color:rgba(255,255,255,0.85);line-height:1.65;font-style:italic; }
+  .msg-song { margin-top:14px;padding-top:14px;border-top:0.5px solid rgba(255,255,255,0.06);font-size:12px;color:rgba(255,255,255,0.3);display:flex;align-items:center;gap:6px; }
+  .msg-song span { color:rgba(255,255,255,0.5); }
+  .success-box { background:rgba(196,120,138,0.1);border:0.5px solid rgba(196,120,138,0.3);border-radius:14px;padding:24px;text-align:center;margin-bottom:20px;animation:fadein 0.4s ease; }
+  .success-box p { font-size:14px;color:rgba(255,255,255,0.7);line-height:1.6; }
+  .success-box strong { color:#C4788A; }
+  .loader { display:flex;align-items:center;justify-content:center;padding:48px 0;gap:10px;color:rgba(255,255,255,0.3);font-size:13px; }
+  .spinner { width:16px;height:16px;border:1.5px solid rgba(255,255,255,0.1);border-top-color:#C4788A;border-radius:50%;animation:spin 0.8s linear infinite; }
+  .empty { text-align:center;padding:48px 0;color:rgba(255,255,255,0.2);font-size:14px;line-height:1.8; }
+  .made-by { text-align:center;font-size:11px;color:rgba(255,255,255,0.15);letter-spacing:0.08em;margin-top:32px;padding-bottom:8px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="stars"></div>
+  <div class="glow"></div>
+  <nav class="nav">
+    <div class="nav-logo">unsent <span>✦</span></div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" id="tab-send" onclick="showTab('send')">Send</button>
+      <button class="nav-tab" id="tab-wall" onclick="showTab('wall')">Wall</button>
+    </div>
+  </nav>
+  <div class="content" id="content"></div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://drkbsbacktqktmkxhiso.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRya2JzYmFja3Rxa3Rta3hoaXNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzOTA2NTIsImV4cCI6MjA4ODk2NjY1Mn0.fqqXRABbQ9nbiotUljTdL_IU8oPQ8YeAhxNj4P-Z8zs';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const emotions = ['love','regret','miss you','anger','gratitude','sorry','longing','relief'];
+let selectedEmotion = '';
+let activeTab = 'send';
+let showSuccess = false;
+
+function timeAgo(ts) {
+  const diff = Math.floor((Date.now() - new Date(ts)) / 1000);
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+  return Math.floor(diff/86400) + 'd ago';
+}
+
+function showTab(tab) {
+  activeTab = tab; showSuccess = false; selectedEmotion = '';
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  renderContent();
+}
+
+function toggleEmotion(e) {
+  selectedEmotion = selectedEmotion === e ? '' : e;
+  document.querySelectorAll('.etag').forEach(el => {
+    el.classList.toggle('selected', el.dataset.e === selectedEmotion);
+  });
+}
+
+async function sendMessage() {
+  const to = document.getElementById('f-to').value.trim();
+  const body = document.getElementById('f-body').value.trim();
+  const song = document.getElementById('f-song').value.trim();
+  if (!to || !body) { alert("Please fill in who it's for and your message."); return; }
+  const btn = document.querySelector('.send-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+  const { error } = await sb.from('messages').insert([{
+    to_name: to, emotion: selectedEmotion || 'unsaid', body, song: song || null, topic: null
+  }]);
+  if (error) {
+    alert('Something went wrong. Please try again.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Seal & send anonymously ✦'; }
+    return;
+  }
+  showSuccess = true; selectedEmotion = '';
+  renderContent();
+}
+
+async function loadMessages() {
+  const el = document.getElementById('content');
+  el.innerHTML = `
+    <div class="wall-header"><p class="wall-title">The Wall 🖤</p><p class="wall-count">loading...</p></div>
+    <div class="loader"><div class="spinner"></div> fetching messages</div>
+    <p class="made-by">by Samiksha ✦ built with Claude</p>`;
+
+  const { data, error } = await sb.from('messages').select('*').order('created_at', { ascending: false }).limit(50);
+
+  if (error) {
+    el.innerHTML = `<div class="wall-header"><p class="wall-title">The Wall 🖤</p></div><div class="empty">Couldn't load messages.<br/>Try again in a moment.</div><p class="made-by">by Samiksha ✦ built with Claude</p>`;
+    return;
+  }
+  const messages = data || [];
+  el.innerHTML = `
+    <div class="wall-header">
+      <p class="wall-title">The Wall 🖤</p>
+      <p class="wall-count">${messages.length} unsent message${messages.length !== 1 ? 's' : ''}</p>
+    </div>
+    ${messages.length === 0
+      ? '<div class="empty">No messages yet.<br/>Be the first to leave one. 🖤</div>'
+      : messages.map(m=>`
+        <div class="message-card">
+          <div class="msg-top"><span class="msg-emotion">${m.emotion}</span><span class="msg-time">${timeAgo(m.created_at)}</span></div>
+          <p class="msg-to">to <span>${m.to_name}</span></p>
+          <p class="msg-body">"${m.body}"</p>
+          ${m.song ? `<div class="msg-song">♪ <span>${m.song}</span></div>` : ''}
+        </div>`).join('')}
+    <p class="made-by">by Samiksha ✦ built with Claude</p>`;
+}
+
+function sendAnother() { showSuccess = false; selectedEmotion = ''; renderContent(); }
+
+function renderContent() {
+  const el = document.getElementById('content');
+  if (activeTab === 'wall') { loadMessages(); return; }
+  if (showSuccess) {
+    el.innerHTML = `
+      <div class="hero"><p class="hero-tag">anonymous messages</p><h1 class="hero-title">Say what you never <em>could</em></h1><p class="hero-sub">No name. No trace. Just the words you've been holding.</p></div>
+      <div class="success-box">
+        <p style="font-size:28px;margin-bottom:12px;">✦</p>
+        <p>Your message has been <strong>sealed</strong> and added to the wall.<br/>No one will ever know it was you.</p>
+        <button class="send-btn" style="margin-top:16px;width:auto;padding:10px 28px;font-size:13px;" onclick="sendAnother()">Send another</button>
+      </div>
+      <p class="made-by">by Samiksha ✦ built with Claude</p>`;
+    return;
+  }
+  el.innerHTML = `
+    <div class="hero"><p class="hero-tag">anonymous messages</p><h1 class="hero-title">Say what you never <em>could</em></h1><p class="hero-sub">No name. No trace. Just the words you've been holding.</p></div>
+    <div class="compose-card">
+      <h3>✦ compose your unsent message</h3>
+      <div class="field"><label>To</label><input id="f-to" type="text" placeholder="their name, 'you', 'my old self'..."/></div>
+      <div class="field"><label>Your message</label><textarea id="f-body" rows="5" placeholder="Write what you never said..."></textarea></div>
+      <div class="field">
+        <label>Emotion</label>
+        <div class="emotion-grid">${emotions.map(e=>`<button class="etag${selectedEmotion===e?' selected':''}" data-e="${e}" onclick="toggleEmotion('${e}')">${e}</button>`).join('')}</div>
+      </div>
+      <div class="field"><label>A song that feels like this (optional)</label><input id="f-song" type="text" placeholder="Song — Artist"/></div>
+      <button class="send-btn" onclick="sendMessage()">Seal & send anonymously ✦</button>
+    </div>
+    <p class="made-by">by Samiksha ✦ built with Claude</p>`;
+}
+
+renderContent();
+</script>
+</body>
+</html>
