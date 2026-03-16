@@ -66,7 +66,7 @@
   .letter-emotion::before { content:'';display:inline-block;width:16px;height:1px;background:#C4788A; }
   .letter-to { font-size:12px;color:rgba(255,255,255,0.35);margin-bottom:10px; }
   .letter-to span { color:rgba(255,255,255,0.7);font-style:italic; }
-  .letter-message { font-size:13px;color:rgba(255,255,255,0.8);line-height:1.65;font-style:italic;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden; }
+  .letter-message { font-size:13px;color:rgba(255,255,255,0.8);line-height:1.65;font-style:italic;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden; } .letter-message.expanded { display:block;overflow:visible; } .read-more { background:none;border:none;color:#C4788A;font-size:11px;cursor:pointer;padding:6px 0 0;letter-spacing:0.04em;font-family:inherit; } .read-more:hover { opacity:0.7; }
   .letter-song { margin-top:14px;padding-top:10px;border-top:0.5px solid rgba(255,255,255,0.05);font-size:11px;color:rgba(255,255,255,0.3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
   .letter-time { font-size:10px;color:rgba(255,255,255,0.2);text-align:right;margin-top:10px; }
 </style>
@@ -227,11 +227,31 @@ async function loadMessages() {
 
       var msgDiv = document.createElement('div');
       msgDiv.className = 'letter-message';
+      msgDiv.id = 'msg-' + m.id;
       msgDiv.textContent = '"' + (m.body || '') + '"';
 
       letterBody.appendChild(emotionDiv);
       letterBody.appendChild(toDiv);
       letterBody.appendChild(msgDiv);
+
+      if (m.body && m.body.length > 120) {
+        var readMore = document.createElement('button');
+        readMore.className = 'read-more';
+        readMore.textContent = 'read more';
+        readMore.setAttribute('data-id', m.id);
+        readMore.onclick = function() {
+          var id = this.getAttribute('data-id');
+          var msg = document.getElementById('msg-' + id);
+          if (msg.classList.contains('expanded')) {
+            msg.classList.remove('expanded');
+            this.textContent = 'read more';
+          } else {
+            msg.classList.add('expanded');
+            this.textContent = 'show less';
+          }
+        };
+        letterBody.appendChild(readMore);
+      }
 
       if (m.song) {
         var songDiv = document.createElement('div');
