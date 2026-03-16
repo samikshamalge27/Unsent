@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Unsent ✦ — Say what you never could</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
   @keyframes fadein { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
   @keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
@@ -12,7 +13,7 @@
   @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
   * { box-sizing:border-box; margin:0; padding:0; }
   body { background:#06060F; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
-  .app { background:#0C0C12; border-radius:20px; width:100%; max-width:520px; min-height:600px; color:#fff; position:relative; overflow:hidden; }
+  .app { background:#0C0C12; border-radius:20px; width:100%; max-width:520px; min-height:600px; color:#fff; position:relative; overflow-y:auto; overflow-x:hidden; }
   .stars { position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(circle,rgba(255,255,255,0.15) 1px,transparent 1px),radial-gradient(circle,rgba(255,255,255,0.08) 1px,transparent 1px);background-size:60px 60px,30px 30px;background-position:0 0,15px 15px; }
   .glow { position:absolute;border-radius:50%;pointer-events:none;width:400px;height:400px;background:radial-gradient(circle,rgba(180,100,120,0.12) 0%,transparent 70%);top:-100px;left:50%;transform:translateX(-50%);animation:pulse 4s ease-in-out infinite; }
   .nav { display:flex;align-items:center;justify-content:space-between;padding:20px 28px;border-bottom:0.5px solid rgba(255,255,255,0.07);position:relative;z-index:3; }
@@ -35,6 +36,7 @@
   .field input, .field textarea { width:100%;background:rgba(255,255,255,0.05);border:0.5px solid rgba(255,255,255,0.1);border-radius:12px;padding:12px 16px;color:#fff;font-size:14px;font-family:inherit;outline:none;transition:border-color 0.2s ease;resize:none; }
   .field input::placeholder, .field textarea::placeholder { color:rgba(255,255,255,0.2); }
   .field input:focus, .field textarea:focus { border-color:rgba(196,120,138,0.5); }
+  .hint { font-size:11px;color:rgba(255,255,255,0.2);margin-top:6px;letter-spacing:0.02em; }
   .emotion-grid { display:flex;flex-wrap:wrap;gap:8px; }
   .etag { padding:6px 14px;border-radius:100px;font-size:12px;border:0.5px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.5);cursor:pointer;transition:all 0.2s ease;background:transparent; }
   .etag:hover { border-color:#C4788A;color:#C4788A; }
@@ -81,12 +83,19 @@
 <script>
 const SUPABASE_URL = 'https://drkbsbacktqktmkxhiso.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRya2JzYmFja3Rxa3Rta3hoaXNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzOTA2NTIsImV4cCI6MjA4ODk2NjY1Mn0.fqqXRABbQ9nbiotUljTdL_IU8oPQ8YeAhxNj4P-Z8zs';
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const emotions = ['love','regret','miss you','anger','gratitude','sorry','longing','relief'];
 let selectedEmotion = '';
 let activeTab = 'send';
 let showSuccess = false;
+let sb = null;
+
+window.addEventListener('load', function() {
+  var client = window.supabase || window.Supabase;
+  if (!client) { console.error('Supabase not loaded'); return; }
+  sb = client.createClient(SUPABASE_URL, SUPABASE_KEY);
+  renderContent();
+});
 
 function timeAgo(ts) {
   const diff = Math.floor((Date.now() - new Date(ts)) / 1000);
@@ -98,66 +107,148 @@ function timeAgo(ts) {
 
 function showTab(tab) {
   activeTab = tab; showSuccess = false; selectedEmotion = '';
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(function(t) { t.classList.remove('active'); });
   document.getElementById('tab-'+tab).classList.add('active');
   renderContent();
 }
 
 function toggleEmotion(e) {
   selectedEmotion = selectedEmotion === e ? '' : e;
-  document.querySelectorAll('.etag').forEach(el => {
+  document.querySelectorAll('.etag').forEach(function(el) {
     el.classList.toggle('selected', el.dataset.e === selectedEmotion);
   });
 }
 
+function sanitize(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;');
+}
+
+function validateInput(str, maxLen) {
+  if (!str) return '';
+  return str.trim().slice(0, maxLen);
+}
+
+function safeText(el, text) {
+  el.textContent = text;
+}
+
 async function sendMessage() {
-  const to = document.getElementById('f-to').value.trim();
-  const body = document.getElementById('f-body').value.trim();
-  const song = document.getElementById('f-song').value.trim();
+  const rawTo = document.getElementById('f-to').value;
+  const rawBody = document.getElementById('f-body').value;
+  const rawSong = document.getElementById('f-song').value;
+
+  const to = validateInput(rawTo, 100);
+  const body = validateInput(rawBody, 1000);
+  const song = validateInput(rawSong, 150);
+
   if (!to || !body) { alert("Please fill in who it's for and your message."); return; }
-  const btn = document.querySelector('.send-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
-  const { error } = await sb.from('messages').insert([{
-    to_name: to, emotion: selectedEmotion || 'unsaid', body, song: song || null
+  if (to.length < 1) { alert("Please enter a name."); return; }
+  if (body.length < 3) { alert("Your message is too short."); return; }
+
+  const allowedEmotions = ['love','regret','miss you','anger','gratitude','sorry','longing','relief','unsaid'];
+  const safeEmotion = allowedEmotions.includes(selectedEmotion) ? selectedEmotion : 'unsaid';
+
+  const btn = document.getElementById('submit-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Posting...'; }
+
+  const result = await sb.from('messages').insert([{
+    to_name: to,
+    emotion: safeEmotion,
+    body: body,
+    song: song ? song : null
   }]);
-  if (error) {
+
+  if (result.error) {
     alert('Something went wrong. Please try again.');
-    if (btn) { btn.disabled = false; btn.textContent = 'Seal & send anonymously ✦'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Post to the wall anonymously ✦'; }
     return;
   }
-  showSuccess = true; selectedEmotion = '';
+  showSuccess = true;
+  selectedEmotion = '';
   renderContent();
 }
 
 async function loadMessages() {
   const el = document.getElementById('content');
-  el.innerHTML = `
-    <div class="wall-header"><p class="wall-title">The Wall 🖤</p><p class="wall-count">loading...</p></div>
-    <div class="loader"><div class="spinner"></div> fetching messages</div>
-    <p class="made-by">by Samiksha ✦ built with Claude</p>`;
+  el.innerHTML = '<div class="wall-header"><p class="wall-title">The Wall 🖤</p><p class="wall-count">loading...</p></div><div class="loader"><div class="spinner"></div> fetching messages</div><p class="made-by">by Samiksha ✦ built with Claude</p>';
 
-  const { data, error } = await sb.from('messages').select('*').order('created_at', { ascending: false }).limit(50);
+  const result = await sb.from('messages').select('id, to_name, emotion, body, song, created_at').order('created_at', { ascending: false }).limit(50);
 
-  if (error) {
-    el.innerHTML = `<div class="wall-header"><p class="wall-title">The Wall 🖤</p></div><div class="empty">Couldn't load messages.<br/>Try again in a moment.</div><p class="made-by">by Samiksha ✦ built with Claude</p>`;
+  if (result.error) {
+    el.innerHTML = '<div class="wall-header"><p class="wall-title">The Wall 🖤</p></div><div class="empty">Couldn\'t load messages.<br/>Try again in a moment.</div><p class="made-by">by Samiksha ✦ built with Claude</p>';
     return;
   }
-  const messages = data || [];
-  el.innerHTML = `
-    <div class="wall-header">
-      <p class="wall-title">The Wall 🖤</p>
-      <p class="wall-count">${messages.length} unsent message${messages.length !== 1 ? 's' : ''}</p>
-    </div>
-    ${messages.length === 0
-      ? '<div class="empty">No messages yet.<br/>Be the first to leave one. 🖤</div>'
-      : messages.map(m=>`
-        <div class="message-card">
-          <div class="msg-top"><span class="msg-emotion">${m.emotion}</span><span class="msg-time">${timeAgo(m.created_at)}</span></div>
-          <p class="msg-to">to <span>${m.to_name}</span></p>
-          <p class="msg-body">"${m.body}"</p>
-          ${m.song ? `<div class="msg-song">♪ <span>${m.song}</span></div>` : ''}
-        </div>`).join('')}
-    <p class="made-by">by Samiksha ✦ built with Claude</p>`;
+
+  const messages = result.data ? result.data : [];
+  const wallEl = document.createElement('div');
+
+  const header = document.createElement('div');
+  header.className = 'wall-header';
+  header.innerHTML = '<p class="wall-title">The Wall 🖤</p><p class="wall-count">' + messages.length + ' unsent message' + (messages.length !== 1 ? 's' : '') + '</p>';
+  wallEl.appendChild(header);
+
+  if (messages.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.textContent = 'No messages yet. Be the first to leave one.';
+    wallEl.appendChild(empty);
+  } else {
+    for (var i = 0; i < messages.length; i++) {
+      var m = messages[i];
+      var card = document.createElement('div');
+      card.className = 'message-card';
+
+      var top = document.createElement('div');
+      top.className = 'msg-top';
+      var emotionSpan = document.createElement('span');
+      emotionSpan.className = 'msg-emotion';
+      emotionSpan.textContent = m.emotion || 'unsaid';
+      var timeSpan = document.createElement('span');
+      timeSpan.className = 'msg-time';
+      timeSpan.textContent = timeAgo(m.created_at);
+      top.appendChild(emotionSpan);
+      top.appendChild(timeSpan);
+
+      var toP = document.createElement('p');
+      toP.className = 'msg-to';
+      toP.textContent = 'to ';
+      var toSpan = document.createElement('span');
+      toSpan.textContent = m.to_name || 'you';
+      toP.appendChild(toSpan);
+
+      var bodyP = document.createElement('p');
+      bodyP.className = 'msg-body';
+      bodyP.textContent = '"' + (m.body || '') + '"';
+
+      card.appendChild(top);
+      card.appendChild(toP);
+      card.appendChild(bodyP);
+
+      if (m.song) {
+        var songDiv = document.createElement('div');
+        songDiv.className = 'msg-song';
+        songDiv.textContent = '♪ ' + m.song;
+        card.appendChild(songDiv);
+      }
+
+      wallEl.appendChild(card);
+    }
+  }
+
+  var madeBy = document.createElement('p');
+  madeBy.className = 'made-by';
+  madeBy.textContent = 'by Samiksha ✦ built with Claude';
+  wallEl.appendChild(madeBy);
+
+  el.innerHTML = '';
+  el.appendChild(wallEl);
 }
 
 function sendAnother() { showSuccess = false; selectedEmotion = ''; renderContent(); }
@@ -166,33 +257,18 @@ function renderContent() {
   const el = document.getElementById('content');
   if (activeTab === 'wall') { loadMessages(); return; }
   if (showSuccess) {
-    el.innerHTML = `
-      <div class="hero"><p class="hero-tag">anonymous messages</p><h1 class="hero-title">Say what you never <em>could</em></h1><p class="hero-sub">No name. No trace. Just the words you've been holding.</p></div>
-      <div class="success-box">
-        <p style="font-size:28px;margin-bottom:12px;">✦</p>
-        <p>Your message has been <strong>sealed</strong> and added to the wall.<br/>No one will ever know it was you.</p>
-        <button class="send-btn" style="margin-top:16px;width:auto;padding:10px 28px;font-size:13px;" onclick="sendAnother()">Send another</button>
-      </div>
-      <p class="made-by">by Samiksha ✦ built with Claude</p>`;
+    el.innerHTML = '<div class="hero"><p class="hero-tag">anonymous messages</p><h1 class="hero-title">Say what you never <em>could</em></h1><p class="hero-sub">No name. No trace. Just the words you\'ve been holding.</p></div><div class="success-box"><p style="font-size:28px;margin-bottom:12px;">✦</p><p>Your message is now <strong>on the wall</strong>.<br/>Anonymous. Forever. No one will know it was you.</p><button class="send-btn" style="margin-top:16px;width:auto;padding:10px 28px;font-size:13px;" onclick="sendAnother()">Leave another</button></div><p class="made-by">by Samiksha ✦ built with Claude</p>';
     return;
   }
-  el.innerHTML = `
-    <div class="hero"><p class="hero-tag">anonymous messages</p><h1 class="hero-title">Say what you never <em>could</em></h1><p class="hero-sub">No name. No trace. Just the words you've been holding.</p></div>
-    <div class="compose-card">
-      <h3>✦ compose your unsent message</h3>
-      <div class="field"><label>To</label><input id="f-to" type="text" placeholder="their name, 'you', 'my old self'..."/></div>
-      <div class="field"><label>Your message</label><textarea id="f-body" rows="5" placeholder="Write what you never said..."></textarea></div>
-      <div class="field">
-        <label>Emotion</label>
-        <div class="emotion-grid">${emotions.map(e=>`<button class="etag${selectedEmotion===e?' selected':''}" data-e="${e}" onclick="toggleEmotion('${e}')">${e}</button>`).join('')}</div>
-      </div>
-      <div class="field"><label>A song that feels like this (optional)</label><input id="f-song" type="text" placeholder="Song — Artist"/></div>
-      <button class="send-btn" onclick="sendMessage()">Seal & send anonymously ✦</button>
-    </div>
-    <p class="made-by"> ✦ </p>`;
+  let emotionBtns = '';
+  for (let i = 0; i < emotions.length; i++) {
+    const e = emotions[i];
+    const sel = selectedEmotion === e ? ' selected' : '';
+    emotionBtns += '<button class="etag' + sel + '" data-e="' + e + '" onclick="toggleEmotion(\'' + e + '\')">' + e + '</button>';
+  }
+  el.innerHTML = '<div class="hero"><p class="hero-tag">anonymous messages</p><h1 class="hero-title">Say what you never <em>could</em></h1><p class="hero-sub">No name. No trace. Just the words you\'ve been holding.</p></div><div class="compose-card"><h3>✦ compose your unsent message</h3><div class="field"><label>To</label><input id="f-to" type="text" placeholder="their name, \'you\', \'my old self\'..."/></div><div class="field"><label>Your message</label><textarea id="f-body" rows="5" placeholder="Write what you never said..."></textarea></div><div class="field"><label>Emotion</label><div class="emotion-grid">' + emotionBtns + '</div></div><div class="field"><label>A song that feels like this (optional)</label><input id="f-song" type="text" placeholder="Song — Artist"/></div><p class="hint">✦ your message will be posted on the wall, anonymously</p><button class="send-btn" id="submit-btn" onclick="sendMessage()">Post to the wall anonymously ✦</button></div><p class="made-by">by Samiksha ✦ built with Claude</p>';
 }
-
-renderContent();
 </script>
+<script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
