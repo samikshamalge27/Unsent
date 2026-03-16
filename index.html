@@ -66,10 +66,10 @@
   .letter-emotion::before { content:'';display:inline-block;width:16px;height:1px;background:#C4788A; }
   .letter-to { font-size:12px;color:rgba(255,255,255,0.35);margin-bottom:10px; }
   .letter-to span { color:rgba(255,255,255,0.7);font-style:italic; }
-  .letter-message { font-size:13px;color:rgba(255,255,255,0.8);line-height:1.65;font-style:italic;max-height:65px;overflow:hidden;transition:max-height 0.3s ease; }
-  .letter-message.expanded { max-height:2000px;overflow:visible; }
-  .read-more { background:none;border:none;color:#C4788A;font-size:11px;cursor:pointer;padding:6px 0 0;letter-spacing:0.04em;font-family:inherit;display:block; }
-  .read-more:hover { opacity:0.7; }
+  .letter-message { font-size:13px;color:rgba(255,255,255,0.8);line-height:1.65;font-style:italic; }
+  
+  
+  
   .letter-song { margin-top:12px;padding-top:10px;border-top:0.5px solid rgba(255,255,255,0.05);font-size:11px;color:rgba(255,255,255,0.3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
   .letter-time { font-size:10px;color:rgba(255,255,255,0.2);text-align:right;margin-top:8px; }
   .reactions-bar { display:flex;flex-direction:row;flex-wrap:wrap;gap:5px;padding:10px 12px 12px;border-top:0.5px solid rgba(255,255,255,0.05);margin-top:8px; }
@@ -390,23 +390,7 @@ async function loadMessages() {
       letterBody.appendChild(toDiv);
       letterBody.appendChild(msgDiv);
 
-      var readMore = document.createElement('button');
-      readMore.className = 'read-more';
-      readMore.textContent = 'read more';
-      readMore.setAttribute('data-id', m.id);
-      readMore.style.display = 'none';
-      readMore.onclick = function() {
-        var id = this.getAttribute('data-id');
-        var msg = document.getElementById('msg-' + id);
-        if (msg.classList.contains('expanded')) {
-          msg.classList.remove('expanded');
-          this.textContent = 'read more';
-        } else {
-          msg.classList.add('expanded');
-          this.textContent = 'show less';
-        }
-      };
-      letterBody.appendChild(readMore);
+
 
       if (m.song) {
         var songDiv = document.createElement('div');
