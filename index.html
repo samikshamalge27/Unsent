@@ -66,7 +66,7 @@
   .letter-emotion::before { content:'';display:inline-block;width:16px;height:1px;background:#C4788A; }
   .letter-to { font-size:12px;color:rgba(255,255,255,0.35);margin-bottom:10px; }
   .letter-to span { color:rgba(255,255,255,0.7);font-style:italic; }
-  .letter-message { font-size:13px;color:rgba(255,255,255,0.8);line-height:1.65;font-style:italic; }
+  .letter-message { font-size:13px;color:rgba(255,255,255,0.8);line-height:1.65;font-style:italic; } .letter-message.clamped { display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden; } .read-more { background:none;border:none;color:#C4788A;font-size:11px;cursor:pointer;padding:4px 0 0;letter-spacing:0.04em;font-family:inherit;display:block; } .read-more:hover { opacity:0.7; }
   
   
   
@@ -381,14 +381,31 @@ async function loadMessages() {
       toDiv.appendChild(toSpan);
 
       var msgDiv = document.createElement('div');
-      msgDiv.className = 'letter-message';
+      msgDiv.className = 'letter-message' + (m.body && m.body.length > 150 ? ' clamped' : '');
       msgDiv.id = 'msg-' + m.id;
-      msgDiv.setAttribute('data-full', m.body || '');
       msgDiv.textContent = '"' + (m.body || '') + '"';
 
       letterBody.appendChild(emotionDiv);
       letterBody.appendChild(toDiv);
       letterBody.appendChild(msgDiv);
+
+      if (m.body && m.body.length > 150) {
+        var rm = document.createElement('button');
+        rm.className = 'read-more';
+        rm.textContent = 'read more';
+        rm.setAttribute('data-id', m.id);
+        rm.onclick = function() {
+          var msg = document.getElementById('msg-' + this.getAttribute('data-id'));
+          if (msg.classList.contains('clamped')) {
+            msg.classList.remove('clamped');
+            this.textContent = 'show less';
+          } else {
+            msg.classList.add('clamped');
+            this.textContent = 'read more';
+          }
+        };
+        letterBody.appendChild(rm);
+      }
 
 
 
